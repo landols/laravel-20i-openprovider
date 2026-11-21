@@ -1,0 +1,52 @@
+{
+  "name": "hosterix/providers",
+  "description": "Hosterix shared providers — 20i hosting + OpenProvider domains integration (mock + real + hybrid)",
+  "type": "library",
+  "license": "proprietary",
+  "keywords": [
+    "20i",
+    "openprovider",
+    "hosting",
+    "domains",
+    "dns",
+    "laravel",
+    "api-client"
+  ],
+  "authors": [
+    {
+      "name": "Mario Landolfo",
+      "homepage": "https://github.com/landols"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "guzzlehttp/guzzle": "^7.0",
+    "illuminate/collections": "^11.0|^12.0|^13.0",
+    "illuminate/http": "^11.0|^12.0|^13.0",
+    "illuminate/support": "^11.0|^12.0|^13.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0|^12.0",
+    "mockery/mockery": "^1.6",
+    "orchestra/testbench": "^9.0|^10.0",
+    "laravel/pint": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Hosterix\\Providers\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Hosterix\\Providers\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "lint": "pint --test",
+    "format": "pint"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
