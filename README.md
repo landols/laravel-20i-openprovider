@@ -2,41 +2,42 @@
 
 [![Tests](https://github.com/landols/laravel-20i-openprovider/actions/workflows/tests.yml/badge.svg)](https://github.com/landols/laravel-20i-openprovider/actions/workflows/tests.yml)
 
-Client PHP per le API di due provider usati da un rivenditore di hosting:
+PHP clients for the APIs of two providers used by a hosting reseller:
 
-- **[20i](https://www.20i.com)**, hosting in reseller: pacchetti, domini aggiuntivi, caselle email,
-  installazione di WordPress, accesso diretto al pannello StackCP, certificati SSL;
-- **[OpenProvider](https://www.openprovider.com)**, registrar: disponibilità, registrazione,
-  rinnovo e trasferimento dei domini, nameserver, record DNS.
+- **[20i](https://www.20i.com)**, reseller hosting: packages, add-on domains, mailboxes,
+  WordPress installation, single sign-on to the StackCP control panel, SSL certificates;
+- **[OpenProvider](https://www.openprovider.com)**, domain registrar: availability, registration,
+  renewal and transfer of domains, nameservers, DNS records.
 
-Pensato per applicazioni Laravel 11, 12 e 13 su PHP 8.4 o successivo.
+Built for Laravel 11, 12 and 13 applications on PHP 8.4 or later.
 
-## Architettura
+## Architecture
 
-Per ogni provider la libreria offre un contratto e tre implementazioni intercambiabili:
+For each provider the library offers one contract and three interchangeable implementations:
 
-| | Contratto | Reale | Mock | Ibrida |
+| | Contract | Real | Mock | Hybrid |
 |---|---|---|---|---|
 | 20i | `TwentiClientInterface` | `TwentiService` | `TwentiMockService` | `TwentiHybridService` |
 | OpenProvider | `OpenproviderClientInterface` | `OpenproviderService` | `OpenproviderMockService` | `OpenproviderHybridService` |
 
-- **Reale**: chiama l'API del provider.
-- **Mock**: simula il provider in memoria, senza rete. Serve ai test e allo sviluppo senza credenziali.
-- **Ibrida**: legge dall'API reale e simula le scritture. Serve in staging, per lavorare su dati veri
-  senza registrare domini o creare caselle per errore. Le eccezioni alla regola sono documentate
-  nelle classi.
+- **Real** calls the provider's API.
+- **Mock** simulates the provider in memory, with no network. Used in tests and for development
+  without credentials.
+- **Hybrid** reads from the real API and simulates writes. Used in staging, to work on real data
+  without registering domains or creating mailboxes by mistake. Exceptions to this rule are
+  documented in the classes.
 
-L'applicazione dipende solo dal contratto; quale implementazione usare lo decide il binding nel
-service container.
+The application depends only on the contract; the service container binding decides which
+implementation it gets.
 
-Ogni metodo restituisce array con una forma fissa, documentata nel contratto
-(per esempio `array{domain: string, available: bool, status: string}`), così il codice
-dell'applicazione non dipende dal formato di risposta del provider.
+Every method returns arrays with a fixed shape, documented in the contract
+(for example `array{domain: string, available: bool, status: string}`), so application code
+does not depend on the provider's response format.
 
-## Installazione
+## Installation
 
-Il pacchetto non è pubblicato su Packagist: si dichiara come repository nel `composer.json`
-dell'applicazione.
+The package is not published on Packagist: declare it as a repository in the application's
+`composer.json`.
 
 ```json
 {
@@ -45,13 +46,13 @@ dell'applicazione.
 }
 ```
 
-## Configurazione
+## Configuration
 
 ```php
 // config/services.php
 'twenti' => [
     'api_key' => env('TWENTI_API_KEY'),
-    'oauth_client_key' => env('TWENTI_OAUTH_CLIENT_KEY'), // solo per gli endpoint Web Hosting
+    'oauth_client_key' => env('TWENTI_OAUTH_CLIENT_KEY'), // only for Web Hosting endpoints
     'package_type_id' => env('TWENTI_PACKAGE_TYPE_ID'),
     'mock' => env('TWENTI_MOCK', true),
 ],
@@ -65,7 +66,7 @@ return [
 ];
 ```
 
-Binding in un service provider:
+Binding in a service provider:
 
 ```php
 use Hosterix\Providers\Contracts\TwentiClientInterface;
@@ -77,7 +78,7 @@ $this->app->singleton(TwentiClientInterface::class, fn ($app) => config('service
     : $app->make(TwentiService::class));
 ```
 
-## Uso
+## Usage
 
 ```php
 use Hosterix\Providers\Contracts\OpenproviderClientInterface;
@@ -102,44 +103,46 @@ final class DomainRegistration
 }
 ```
 
-## Note sui provider
+## Provider notes
 
-**20i: due autenticazioni.** Gli endpoint Reseller (`/reseller/*`, `GET /package`) vogliono
-il token `base64(API_KEY)`; quelli Web Hosting (`/package/{id}/web/*`, `/email/*`)
-`base64(API_KEY+OAUTH_CLIENT_KEY)`. `TwentiService` sceglie il token giusto per ogni chiamata;
-senza `oauth_client_key` usa la sola API key. Le letture che richiedono due endpoint
-partono in parallelo.
+**20i: two kinds of authentication.** Reseller endpoints (`/reseller/*`, `GET /package`) expect
+the token `base64(API_KEY)`; Web Hosting endpoints (`/package/{id}/web/*`, `/email/*`) expect
+`base64(API_KEY+OAUTH_CLIENT_KEY)`. `TwentiService` picks the right token for each call;
+without `oauth_client_key` it falls back to the API key alone. Reads that need two endpoints
+run in parallel.
 
-**OpenProvider: login al primo uso.** Il servizio ottiene il token alla prima richiesta e lo
-riusa; costruirlo non apre connessioni. La cancellazione di un record DNS che non esiste
-e l'annullamento di un trasferimento già chiuso sono trattati come riusciti, così le
-operazioni si possono ripetere senza errori.
+**OpenProvider: login on first use.** The service obtains its token on the first request and
+reuses it; constructing it opens no connection. Deleting a DNS record that does not exist and
+cancelling a transfer that is already closed are treated as successful, so operations can be
+safely retried.
 
-## Errori
+## Errors
 
-Tutte le eccezioni della libreria estendono `Hosterix\Providers\Exceptions\ProviderException`
-(a sua volta `RuntimeException`):
+Every exception thrown by the library extends `Hosterix\Providers\Exceptions\ProviderException`
+(itself a `RuntimeException`):
 
-| Eccezione | Quando |
+| Exception | When |
 |---|---|
-| `ProviderConfigurationException` | credenziali mancanti nella configurazione |
-| `ProviderAuthenticationException` | il provider rifiuta le credenziali |
-| `ProviderRequestException` | il provider risponde con un errore o una risposta non valida; `httpStatus` riporta lo status HTTP, quando c'è |
-| `UnsupportedOperationException` | l'API del provider non offre l'operazione (per esempio la cancellazione di un pacchetto 20i) |
+| `ProviderConfigurationException` | credentials missing from the configuration |
+| `ProviderAuthenticationException` | the provider rejects the credentials |
+| `ProviderRequestException` | the provider returns an error or an invalid response; `httpStatus` holds the HTTP status, when there is one |
+| `UnsupportedOperationException` | the provider's API does not offer the operation (for example deleting a 20i package) |
 
-## Test
+Exception messages are in Italian.
+
+## Tests
 
 ```bash
 composer install
-composer test   # PHPUnit: client reali con HTTP simulato, mock e ibridi
+composer test   # PHPUnit: real clients against faked HTTP, mocks and hybrids
 composer lint   # Laravel Pint
 ```
 
-La CI li esegue su PHP 8.4 e 8.5.
+CI runs both on PHP 8.4 and 8.5.
 
-## Licenza
+## License
 
-Codice pubblicato in sola consultazione. Tutti i diritti riservati: non è concessa alcuna
-licenza di riutilizzo. Il repository non accetta contributi esterni.
+Published for reference only. All rights reserved: no licence to reuse the code is granted.
+The repository does not accept external contributions.
 
 Mario Landolfo · [github.com/landols](https://github.com/landols)
